@@ -1,0 +1,26 @@
+[package]
+name = "sigmaos-update-system"
+version = "0.1.0"
+edition = "2021"
+description = "SigmaOS rolling release update system"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/AaryanSinghChauhan09/SigmaOS-update-system"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+anyhow = "1.0"
+thiserror = "1.0"
+log = "0.4"
+env_logger = "0.10"
+clap = { version = "4.0", features = ["derive"] }
+reqwest = { version = "0.11", features = ["json"] }
+tokio = { version = "1.0", features = ["full"] }
+semver = "1.0"
+directories = "5.0"
+notify = "6.0"
+
+[dev-dependencies]
+tempfile = "3.0"
+mockito = "1.0"
