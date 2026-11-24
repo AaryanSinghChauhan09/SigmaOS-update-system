@@ -70,7 +70,8 @@ enum Commands {
     },
 }
 
-fn main() -> Result<(), UpdateError> {
+#[tokio::main]
+async fn main() -> Result<(), UpdateError> {
     env_logger::init();
     
     let cli = Cli::parse();
@@ -119,7 +120,7 @@ fn main() -> Result<(), UpdateError> {
             let status = update_manager.get_status()?;
             println!("Current version: {}", status.current_version);
             println!("Update channel: {}", status.channel);
-            println!("Last check: {}", status.last_check);
+            println!("Last check: {:?}", status.last_check);
             println!("Auto update: {}", status.auto_update);
             
             if detailed {

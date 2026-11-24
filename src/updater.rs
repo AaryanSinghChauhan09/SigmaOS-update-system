@@ -2,7 +2,7 @@ use crate::error::UpdateError;
 use crate::channel::UpdateChannel;
 use crate::notifier::UpdateNotifier;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::fs;
 use reqwest::Client;
 use semver::Version;
@@ -15,9 +15,8 @@ pub struct UpdateManager {
 }
 
 impl UpdateManager {
-    pub fn new() -> Result<Self, ConfigError> {
-        let config_dir = directories::config_dir()
-            .unwrap_or_else(|| PathBuf::from("~"))
+    pub fn new() -> Result<Self, UpdateError> {
+        let config_dir = directories::ProjectDirs::from("org", "sigmaos", "sigmaos").map(|p| p.config_dir().to_path_buf()).unwrap_or_else(|| PathBuf::from("~/.config"))
             .join("sigmaos");
         
         fs::create_dir_all(&config_dir)?;
@@ -244,8 +243,7 @@ impl UpdateManager {
         let response = self.client.get(url).send().await?;
         let bytes = response.bytes().await?;
         
-        let temp_path = directories::cache_dir()
-            .unwrap_or_else(|| PathBuf::from("/tmp"))
+        let temp_path = directories::ProjectDirs::from("org", "sigmaos", "sigmaos").map(|p| p.cache_dir().to_path_buf()).unwrap_or_else(|| PathBuf::from("/tmp"))
             .join("sigmaos-update")
             .join("package.tar.zst");
         
@@ -294,8 +292,7 @@ impl UpdateManager {
     
     fn create_backup(&self) -> Result<(), UpdateError> {
         // Create backup of current system state
-        let backup_dir = directories::cache_dir()
-            .unwrap_or_else(|| PathBuf::from("/tmp"))
+        let backup_dir = directories::ProjectDirs::from("org", "sigmaos", "sigmaos").map(|p| p.cache_dir().to_path_buf()).unwrap_or_else(|| PathBuf::from("/tmp"))
             .join("sigmaos-backup");
         
         fs::create_dir_all(&backup_dir)?;

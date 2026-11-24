@@ -20,6 +20,7 @@ tokio = { version = "1.0", features = ["full"] }
 semver = "1.0"
 directories = "5.0"
 notify = "6.0"
+chrono = "0.4.45"
 
 [dev-dependencies]
 tempfile = "3.0"
