@@ -48,8 +48,11 @@ impl UpdateManager {
         // Fetch updates from server
         let updates = self.fetch_updates(channel, &current_version).await?;
 
-        // Save last check time
-        self.save_last_check()?;
+        // Persist as pending and save last check time
+        let mut state = self.load_state()?;
+        state.pending = updates.clone();
+        state.last_check = Some(chrono::Utc::now().timestamp());
+        self.save_state(&state)?;
 
         Ok(updates)
     }
@@ -128,7 +131,7 @@ impl UpdateManager {
             channel: config.channel,
             last_check: state.last_check,
             auto_update: config.auto_update,
-            pending_updates: Vec::new(), // TODO: Implement pending updates
+            pending_updates: state.pending,
         })
     }
 
@@ -195,12 +198,6 @@ impl UpdateManager {
         } else {
             Ok(true)
         }
-    }
-
-    fn save_last_check(&self) -> Result<(), UpdateError> {
-        let mut state = self.load_state()?;
-        state.last_check = Some(chrono::Utc::now().timestamp());
-        self.save_state(&state)
     }
 
     fn get_current_version(&self) -> Result<String, UpdateError> {
@@ -370,6 +367,9 @@ pub struct UpdateState {
     pub last_check: Option<i64>,
     pub versions: Vec<String>,
     pub current_version: String,
+    /// Updates returned by the most recent check, surfaced by `get_status`.
+    #[serde(default)]
+    pub pending: Vec<Update>,
 }
 
 impl Default for UpdateState {
@@ -378,6 +378,7 @@ impl Default for UpdateState {
             last_check: None,
             versions: Vec::new(),
             current_version: "0.1.0".to_string(),
+            pending: Vec::new(),
         }
     }
 }
@@ -389,4 +390,35 @@ pub struct UpdateStatus {
     pub last_check: Option<i64>,
     pub auto_update: bool,
     pub pending_updates: Vec<Update>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn update_state_pending_roundtrips() {
+        let mut state = UpdateState::default();
+        state.pending.push(Update {
+            current_version: "0.1.0".into(),
+            new_version: "0.2.0".into(),
+            channel: "stable".into(),
+            package_url: "https://example.com/p.tar.zst".into(),
+            signature: "sig".into(),
+            release_notes: "notes".into(),
+            published_at: "2026-01-01".into(),
+        });
+        let json = serde_json::to_string(&state).unwrap();
+        let back: UpdateState = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.pending.len(), 1);
+        assert_eq!(back.pending[0].new_version, "0.2.0");
+    }
+
+    #[test]
+    fn legacy_state_without_pending_deserializes() {
+        let back: UpdateState =
+            serde_json::from_str(r#"{"last_check":null,"versions":[],"current_version":"0.1.0"}"#)
+                .unwrap();
+        assert!(back.pending.is_empty());
+    }
 }
