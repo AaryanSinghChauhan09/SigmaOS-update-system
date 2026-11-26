@@ -1,11 +1,11 @@
 #![forbid(unsafe_code)]
 
-pub mod updater;
-pub mod error;
 pub mod channel;
+pub mod error;
 pub mod notifier;
+pub mod updater;
 
-pub use updater::UpdateManager;
-pub use error::UpdateError;
 pub use channel::UpdateChannel;
+pub use error::UpdateError;
 pub use notifier::UpdateNotifier;
+pub use updater::UpdateManager;

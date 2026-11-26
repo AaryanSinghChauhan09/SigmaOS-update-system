@@ -9,15 +9,6 @@ pub enum UpdateChannel {
 }
 
 impl UpdateChannel {
-    pub fn from_str(s: &str) -> Self {
-        match s {
-            "stable" => UpdateChannel::Stable,
-            "beta" => UpdateChannel::Beta,
-            "nightly" => UpdateChannel::Nightly,
-            _ => UpdateChannel::Custom(s.to_string()),
-        }
-    }
-    
     pub fn as_str(&self) -> &str {
         match self {
             UpdateChannel::Stable => "stable",
@@ -25,5 +16,18 @@ impl UpdateChannel {
             UpdateChannel::Nightly => "nightly",
             UpdateChannel::Custom(s) => s,
         }
+    }
+}
+
+impl std::str::FromStr for UpdateChannel {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "stable" => UpdateChannel::Stable,
+            "beta" => UpdateChannel::Beta,
+            "nightly" => UpdateChannel::Nightly,
+            _ => UpdateChannel::Custom(s.to_string()),
+        })
     }
 }

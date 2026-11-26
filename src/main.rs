@@ -1,13 +1,5 @@
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
-
-mod updater;
-mod error;
-mod channel;
-mod notifier;
-
-use updater::UpdateManager;
-use error::UpdateError;
+use sigmaos_update_system::{UpdateError, UpdateManager};
 
 #[derive(Parser)]
 #[command(name = "sigmaos-update")]
@@ -73,10 +65,10 @@ enum Commands {
 #[tokio::main]
 async fn main() -> Result<(), UpdateError> {
     env_logger::init();
-    
+
     let cli = Cli::parse();
     let update_manager = UpdateManager::new()?;
-    
+
     match cli.command {
         Commands::Check { channel, force } => {
             let updates = update_manager.check_updates(&channel, force).await?;
@@ -85,11 +77,18 @@ async fn main() -> Result<(), UpdateError> {
             } else {
                 println!("{} update(s) available:", updates.len());
                 for update in updates {
-                    println!("  {} -> {} ({})", update.current_version, update.new_version, update.channel);
+                    println!(
+                        "  {} -> {} ({})",
+                        update.current_version, update.new_version, update.channel
+                    );
                 }
             }
         }
-        Commands::Update { channel, dry_run, force } => {
+        Commands::Update {
+            channel,
+            dry_run,
+            force,
+        } => {
             if dry_run {
                 let updates = update_manager.check_updates(&channel, true).await?;
                 println!("Dry run - {} update(s) would be installed:", updates.len());
@@ -122,7 +121,7 @@ async fn main() -> Result<(), UpdateError> {
             println!("Update channel: {}", status.channel);
             println!("Last check: {:?}", status.last_check);
             println!("Auto update: {}", status.auto_update);
-            
+
             if detailed {
                 println!("\nPending updates:");
                 for update in status.pending_updates {
@@ -130,11 +129,15 @@ async fn main() -> Result<(), UpdateError> {
                 }
             }
         }
-        Commands::Config { channel, auto_update, interval } => {
+        Commands::Config {
+            channel,
+            auto_update,
+            interval,
+        } => {
             update_manager.update_config(channel, auto_update, interval)?;
             println!("Configuration updated");
         }
     }
-    
+
     Ok(())
 }
