@@ -187,3 +187,14 @@ export SIGMAOS_UPDATE_INTERVAL=86400
 ## License
 
 GPL-3.0-or-later
+
+## See Also
+
+Related SigmaOS **Package Management** repositories:
+
+- [SigmaOS-pkg-core](../SigmaOS-pkg-core/README.md) — SigmaOS core package manager
+- [SigmaOS-build-system](../SigmaOS-build-system/README.md) — SigmaOS package build system
+- [SigmaOS-ports](../SigmaOS-ports/README.md) — SigmaOS ports tree
+- [SigmaOS-dkms](../SigmaOS-dkms/README.md) — SigmaOS dynamic kernel module support
+- [SigmaOS-recovery-system](../SigmaOS-recovery-system/README.md) — SigmaOS snapshot & recovery utility
+- [SigmaOS-rollback](../SigmaOS-rollback/README.md) — SigmaOS transactional rollback manager
