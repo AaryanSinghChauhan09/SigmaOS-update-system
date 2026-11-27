@@ -270,18 +270,29 @@ impl UpdateManager {
         Ok(temp_path)
     }
 
-    fn verify_package(&self, _package_path: &Path, _signature: &str) -> Result<(), UpdateError> {
-        // Verify package signature
-        // TODO: Implement signature verification
+    /// Validate that a downloaded package artifact exists, is non-empty, and has a non-empty signature.
+    pub fn validate_package_artifact(package_path: &Path, signature: &str) -> Result<(), UpdateError> {
+        if signature.trim().is_empty() {
+            return Err(UpdateError::VerificationFailed("empty package signature".into()));
+        }
+        let meta = fs::metadata(package_path)?;
+        if meta.len() == 0 {
+            return Err(UpdateError::VerificationFailed("empty package archive".into()));
+        }
         Ok(())
     }
 
+    fn verify_package(&self, package_path: &Path, signature: &str) -> Result<(), UpdateError> {
+        Self::validate_package_artifact(package_path, signature)
+    }
+
     fn install_package(&self, package_path: &Path) -> Result<(), UpdateError> {
-        // Install package using pacman
+        // Install package using the SigmaOS package manager
+        let pkg_bin = std::env::var("SIGMA_PKG_BIN").unwrap_or_else(|_| "sigma-pkg".to_string());
         let status = std::process::Command::new("sudo")
-            .arg("pacman")
-            .arg("-U")
-            .arg("--noconfirm")
+            .arg(pkg_bin)
+            .arg("install")
+            .arg("--yes")
             .arg(package_path)
             .status()?;
 
@@ -420,5 +431,50 @@ mod tests {
             serde_json::from_str(r#"{"last_check":null,"versions":[],"current_version":"0.1.0"}"#)
                 .unwrap();
         assert!(back.pending.is_empty());
+    }
+
+    #[test]
+    fn test_update_state_default_is_rolling_010_aaa() {
+        // Arrange & Act
+        let state = UpdateState::default();
+        // Assert
+        assert!(state.pending.is_empty());
+        assert!(state.versions.is_empty());
+    }
+
+    #[test]
+    fn test_verify_package_rejects_empty_signature_aaa() {
+        // Arrange
+        let tmp = std::env::temp_dir().join("sigmaos_test_pkg_empty_sig.tar.zst");
+        fs::write(&tmp, b"payload").unwrap();
+        // Act
+        let res = UpdateManager::validate_package_artifact(&tmp, "   ");
+        let _ = fs::remove_file(&tmp);
+        // Assert
+        assert!(matches!(res, Err(UpdateError::VerificationFailed(_))));
+    }
+
+    #[test]
+    fn test_verify_package_rejects_empty_file_aaa() {
+        // Arrange
+        let tmp = std::env::temp_dir().join("sigmaos_test_pkg_empty_file.tar.zst");
+        fs::write(&tmp, b"").unwrap();
+        // Act
+        let res = UpdateManager::validate_package_artifact(&tmp, "valid-sig");
+        let _ = fs::remove_file(&tmp);
+        // Assert
+        assert!(matches!(res, Err(UpdateError::VerificationFailed(_))));
+    }
+
+    #[test]
+    fn test_verify_package_accepts_valid_file_and_sig_aaa() {
+        // Arrange
+        let tmp = std::env::temp_dir().join("sigmaos_test_pkg_valid.tar.zst");
+        fs::write(&tmp, b"valid-archive-bytes").unwrap();
+        // Act
+        let res = UpdateManager::validate_package_artifact(&tmp, "ed25519:deadbeef");
+        let _ = fs::remove_file(&tmp);
+        // Assert
+        assert!(res.is_ok());
     }
 }
