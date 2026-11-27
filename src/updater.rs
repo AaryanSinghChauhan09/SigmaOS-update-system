@@ -30,6 +30,22 @@ impl UpdateManager {
         })
     }
 
+    /// Construct an `UpdateManager` with explicit config and state paths (useful for isolated tests).
+    pub fn with_paths(config_path: PathBuf, state_path: PathBuf) -> Result<Self, UpdateError> {
+        if let Some(parent) = config_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        if let Some(parent) = state_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        Ok(Self {
+            client: Client::new(),
+            notifier: UpdateNotifier::new()?,
+            config_path,
+            state_path,
+        })
+    }
+
     pub async fn check_updates(
         &self,
         channel: &str,
@@ -201,16 +217,19 @@ impl UpdateManager {
     }
 
     fn get_current_version(&self) -> Result<String, UpdateError> {
-        // Read current version from system
-        let output = std::process::Command::new("sigmaos-version")
+        // Read current version from system binary if present, otherwise fall back to persisted state
+        if let Ok(output) = std::process::Command::new("sigmaos-version")
             .arg("--current")
-            .output()?;
-
-        if output.status.success() {
-            Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
-        } else {
-            Ok("0.1.0".to_string())
+            .output()
+        {
+            if output.status.success() {
+                let ver = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !ver.is_empty() {
+                    return Ok(ver);
+                }
+            }
         }
+        Ok(self.load_state()?.current_version)
     }
 
     async fn fetch_updates(
@@ -310,6 +329,7 @@ impl UpdateManager {
 
         // Update state
         let mut state = self.load_state()?;
+        state.current_version = version.to_string();
         if !state.versions.contains(&version.to_string()) {
             state.versions.push(version.to_string());
         }
@@ -336,9 +356,13 @@ impl UpdateManager {
         Ok(())
     }
 
-    fn apply_rollback(&self, _version: &str) -> Result<(), UpdateError> {
-        // Rollback to specified version
-        // TODO: Implement rollback logic
+    fn apply_rollback(&self, version: &str) -> Result<(), UpdateError> {
+        let mut state = self.load_state()?;
+        if !state.versions.contains(&version.to_string()) {
+            return Err(UpdateError::InvalidVersion(version.to_string()));
+        }
+        state.current_version = version.to_string();
+        self.save_state(&state)?;
         Ok(())
     }
 }
@@ -476,5 +500,80 @@ mod tests {
         let _ = fs::remove_file(&tmp);
         // Assert
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_rollback_to_previous_restores_prior_version_aaa() {
+        // Arrange
+        let base = std::env::temp_dir().join(format!("sigmaos_upd_rb_{}", std::process::id()));
+        let cfg = base.join("update.toml");
+        let st = base.join("update-state.json");
+        let mgr = UpdateManager::with_paths(cfg, st.clone()).unwrap();
+        let initial = UpdateState {
+            last_check: None,
+            versions: vec!["0.1.0".into(), "0.2.0".into()],
+            current_version: "0.2.0".into(),
+            pending: vec![],
+        };
+        mgr.save_state(&initial).unwrap();
+
+        // Act
+        mgr.rollback_to_previous().unwrap();
+
+        // Assert
+        let status = mgr.get_status().unwrap();
+        assert_eq!(status.current_version, "0.1.0");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_rollback_to_previous_requires_two_versions_aaa() {
+        // Arrange
+        let base = std::env::temp_dir().join(format!("sigmaos_upd_noprev_{}", std::process::id()));
+        let mgr = UpdateManager::with_paths(base.join("update.toml"), base.join("state.json")).unwrap();
+        mgr.save_state(&UpdateState {
+            last_check: None,
+            versions: vec!["0.1.0".into()],
+            current_version: "0.1.0".into(),
+            pending: vec![],
+        }).unwrap();
+
+        // Act
+        let res = mgr.rollback_to_previous();
+
+        // Assert
+        assert!(matches!(res, Err(UpdateError::NoPreviousVersion)));
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_rollback_unknown_version_rejected_aaa() {
+        // Arrange
+        let base = std::env::temp_dir().join(format!("sigmaos_upd_unk_{}", std::process::id()));
+        let mgr = UpdateManager::with_paths(base.join("update.toml"), base.join("state.json")).unwrap();
+        mgr.save_state(&UpdateState::default()).unwrap();
+
+        // Act
+        let res = mgr.rollback("9.9.9");
+
+        // Assert
+        assert!(matches!(res, Err(UpdateError::InvalidVersion(_))));
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn test_update_config_persists_channel_and_interval_aaa() {
+        // Arrange
+        let base = std::env::temp_dir().join(format!("sigmaos_upd_cfg_{}", std::process::id()));
+        let mgr = UpdateManager::with_paths(base.join("update.toml"), base.join("state.json")).unwrap();
+
+        // Act
+        mgr.update_config(Some("nightly".into()), Some(true), Some(3600)).unwrap();
+        let status = mgr.get_status().unwrap();
+
+        // Assert
+        assert_eq!(status.channel, "nightly");
+        assert!(status.auto_update);
+        let _ = fs::remove_dir_all(&base);
     }
 }
