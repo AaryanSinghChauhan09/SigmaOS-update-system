@@ -451,7 +451,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[test]
     fn config_pocket_maps_channel() {
         let mut c = UpdateConfig::default();
         assert_eq!(c.pocket(), "stable");
@@ -463,6 +462,7 @@ mod tests {
         assert_eq!(c.pocket(), "security");
     }
 
+    #[test]
     fn update_state_pending_roundtrips() {
         let mut state = UpdateState::default();
         state.pending.push(Update {
