@@ -17,6 +17,17 @@ impl UpdateChannel {
             UpdateChannel::Custom(s) => s,
         }
     }
+
+    /// Map the channel onto a release-pocket name used by
+    /// `sigmaos-pockets` (Debian-style: stable/testing/unstable).
+    pub fn pocket_name(&self) -> &str {
+        match self {
+            UpdateChannel::Stable => "stable",
+            UpdateChannel::Beta => "testing",
+            UpdateChannel::Nightly => "unstable",
+            UpdateChannel::Custom(s) => s,
+        }
+    }
 }
 
 impl std::str::FromStr for UpdateChannel {
@@ -29,5 +40,23 @@ impl std::str::FromStr for UpdateChannel {
             "nightly" => UpdateChannel::Nightly,
             _ => UpdateChannel::Custom(s.to_string()),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pocket_name_maps_channels() {
+        assert_eq!(UpdateChannel::Stable.pocket_name(), "stable");
+        assert_eq!(UpdateChannel::Beta.pocket_name(), "testing");
+        assert_eq!(UpdateChannel::Nightly.pocket_name(), "unstable");
+        assert_eq!(
+            UpdateChannel::Custom("security".into()).pocket_name(),
+            "security"
+        );
+        // as_str keeps its own vocabulary
+        assert_eq!(UpdateChannel::Beta.as_str(), "beta");
     }
 }

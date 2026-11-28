@@ -290,13 +290,20 @@ impl UpdateManager {
     }
 
     /// Validate that a downloaded package artifact exists, is non-empty, and has a non-empty signature.
-    pub fn validate_package_artifact(package_path: &Path, signature: &str) -> Result<(), UpdateError> {
+    pub fn validate_package_artifact(
+        package_path: &Path,
+        signature: &str,
+    ) -> Result<(), UpdateError> {
         if signature.trim().is_empty() {
-            return Err(UpdateError::VerificationFailed("empty package signature".into()));
+            return Err(UpdateError::VerificationFailed(
+                "empty package signature".into(),
+            ));
         }
         let meta = fs::metadata(package_path)?;
         if meta.len() == 0 {
-            return Err(UpdateError::VerificationFailed("empty package archive".into()));
+            return Err(UpdateError::VerificationFailed(
+                "empty package archive".into(),
+            ));
         }
         Ok(())
     }
@@ -530,13 +537,15 @@ mod tests {
     fn test_rollback_to_previous_requires_two_versions_aaa() {
         // Arrange
         let base = std::env::temp_dir().join(format!("sigmaos_upd_noprev_{}", std::process::id()));
-        let mgr = UpdateManager::with_paths(base.join("update.toml"), base.join("state.json")).unwrap();
+        let mgr =
+            UpdateManager::with_paths(base.join("update.toml"), base.join("state.json")).unwrap();
         mgr.save_state(&UpdateState {
             last_check: None,
             versions: vec!["0.1.0".into()],
             current_version: "0.1.0".into(),
             pending: vec![],
-        }).unwrap();
+        })
+        .unwrap();
 
         // Act
         let res = mgr.rollback_to_previous();
@@ -550,7 +559,8 @@ mod tests {
     fn test_rollback_unknown_version_rejected_aaa() {
         // Arrange
         let base = std::env::temp_dir().join(format!("sigmaos_upd_unk_{}", std::process::id()));
-        let mgr = UpdateManager::with_paths(base.join("update.toml"), base.join("state.json")).unwrap();
+        let mgr =
+            UpdateManager::with_paths(base.join("update.toml"), base.join("state.json")).unwrap();
         mgr.save_state(&UpdateState::default()).unwrap();
 
         // Act
@@ -565,10 +575,12 @@ mod tests {
     fn test_update_config_persists_channel_and_interval_aaa() {
         // Arrange
         let base = std::env::temp_dir().join(format!("sigmaos_upd_cfg_{}", std::process::id()));
-        let mgr = UpdateManager::with_paths(base.join("update.toml"), base.join("state.json")).unwrap();
+        let mgr =
+            UpdateManager::with_paths(base.join("update.toml"), base.join("state.json")).unwrap();
 
         // Act
-        mgr.update_config(Some("nightly".into()), Some(true), Some(3600)).unwrap();
+        mgr.update_config(Some("nightly".into()), Some(true), Some(3600))
+            .unwrap();
         let status = mgr.get_status().unwrap();
 
         // Assert
