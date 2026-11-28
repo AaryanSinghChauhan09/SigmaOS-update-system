@@ -393,6 +393,18 @@ pub struct UpdateConfig {
     pub notify_updates: bool,
 }
 
+impl UpdateConfig {
+    /// Release-pocket name for this config's channel
+    /// (stable/beta/nightly -> stable/testing/unstable), matching
+    /// `sigmaos-pockets` vocabulary.
+    pub fn pocket(&self) -> String {
+        self.channel
+            .parse::<crate::channel::UpdateChannel>()
+            .map(|c| c.pocket_name().to_string())
+            .unwrap_or_else(|_| self.channel.clone())
+    }
+}
+
 impl Default for UpdateConfig {
     fn default() -> Self {
         Self {
@@ -439,6 +451,18 @@ mod tests {
     use super::*;
 
     #[test]
+    #[test]
+    fn config_pocket_maps_channel() {
+        let mut c = UpdateConfig::default();
+        assert_eq!(c.pocket(), "stable");
+        c.channel = "beta".into();
+        assert_eq!(c.pocket(), "testing");
+        c.channel = "nightly".into();
+        assert_eq!(c.pocket(), "unstable");
+        c.channel = "security".into();
+        assert_eq!(c.pocket(), "security");
+    }
+
     fn update_state_pending_roundtrips() {
         let mut state = UpdateState::default();
         state.pending.push(Update {
