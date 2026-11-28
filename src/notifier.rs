@@ -8,31 +8,32 @@ impl UpdateNotifier {
     }
 
     pub fn notify_update(&self, message: &str) -> Result<(), UpdateError> {
-        // Send desktop notification
-        let status = std::process::Command::new("notify-send")
+        // Send desktop notification — best-effort: headless systems
+        // and CI have no notify-send, which must not fail updates.
+        match std::process::Command::new("notify-send")
             .arg("SigmaOS Update")
             .arg(message)
-            .status()?;
-
-        if !status.success() {
-            log::warn!("Failed to send notification");
+            .status()
+        {
+            Ok(status) if !status.success() => log::warn!("notify-send exited with {}", status),
+            Ok(_) => {}
+            Err(e) => log::warn!("notify-send unavailable: {}", e),
         }
-
         Ok(())
     }
 
     pub fn notify_error(&self, message: &str) -> Result<(), UpdateError> {
-        // Send error notification
-        let status = std::process::Command::new("notify-send")
+        // Send error notification — same best-effort policy.
+        match std::process::Command::new("notify-send")
             .arg("--urgency=critical")
             .arg("SigmaOS Update Error")
             .arg(message)
-            .status()?;
-
-        if !status.success() {
-            log::warn!("Failed to send error notification");
+            .status()
+        {
+            Ok(status) if !status.success() => log::warn!("notify-send exited with {}", status),
+            Ok(_) => {}
+            Err(e) => log::warn!("notify-send unavailable: {}", e),
         }
-
         Ok(())
     }
 }
